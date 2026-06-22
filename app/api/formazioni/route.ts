@@ -38,6 +38,10 @@ export async function GET(req: NextRequest) {
     eventoId = prossimoEvento.id;
   }
 
+  if (!eventoId) {
+    return NextResponse.json({ errore: 'Evento non trovato.' }, { status: 404 });
+  }
+
   const { data: evento } = await sb
     .from('motogp_eventi')
     .select('id, nome, paese, circuito, data_inizio, stagione_id, numero_round, stato')
