@@ -485,12 +485,12 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
       }
     }
 
-    const risultato: RisultatoSync = {
+const risultato: RisultatoSync = {
       esito: aggiornati > 0 ? 'successo' : 'errore',
       dettaglio: `${aggiornati}/${totale} piloti sincronizzati per la stagione ${stagioneApi.year}.`,
       eventiAggiornati: aggiornati,
     };
-    await logSync('piloti',...risultato);
+    await logSync('piloti', risultato); // <--- CORRETTO (tolto "... ")
     return risultato;
   } catch (err) {
     const risultato: RisultatoSync = {
@@ -498,7 +498,7 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
       dettaglio: `Sync piloti fallita: ${String(err)}`,
       eventiAggiornati: 0,
     };
-    await logSync('piloti',...risultato);
+    await logSync('piloti', risultato); // <--- CORRETTO (tolto "... ")
     return risultato;
   }
 }
