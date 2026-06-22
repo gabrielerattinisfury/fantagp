@@ -27,7 +27,6 @@ import {
   recuperaEventi,
   recuperaSessioni,
   recuperaClassifica,
-  recuperaPilotiCompleti,
   normalizzaTipoSessione,
   type ApiEvento,
 } from './motogp-api';
@@ -377,58 +376,80 @@ export async function sincronizzaRisultati(): Promise<RisultatoSync> {
 }
 
 /**
- * Sincronizza l'anagrafica completa piloti (tutte le categorie), incluse le
- * foto profilo ufficiali e i colori squadra, usati nelle card di selezione
- * formazione. Da eseguire periodicamente (i piloti cambiano raramente, ma è
- * utile tenerla nella pipeline standard per coprire wildcard, sostituti
- * ricorrenti, cambi di team in corso di carriera, ecc.)
- *
- * IMPORTANTE - adattabilità multi-stagione: questa funzione NON assume mai
- * un anno specifico. recuperaStagioneCorrente() chiede all'API MotoGP quale
- * stagione sia marcata "current" in questo momento (lo decide Dorna stessa,
- * lato server), quindi quando inizierà la stagione 2027 questa funzione
- * automaticamente leggerà numero di gara, team e colori 2027 senza che
- * nessuno debba toccare il codice. Lo stesso vale per sincronizzaCalendario:
- * il numero_round/calendario viene sempre ricalcolato dalla stagione
- * corrente letta dinamicamente, mai hardcoded su un anno.
+ * Sincronizza l'anagrafica piloti leggendola dagli standings (classifica
+ * mondiale) per ciascuna categoria della stagione corrente. Questo è
+ * l'endpoint che funziona in modo affidabile: ogni riga della classifica
+ * mondiale contiene nome, numero e team del pilota, e viene aggiornata dopo
+ * ogni gara. Non include foto profilo (non disponibili via questo endpoint),
+ * ma per la funzionalità core dell'app (selezionare piloti, calcolare punti)
+ * nome + numero + team sono sufficienti.
  */
 export async function sincronizzaPiloti(): Promise<RisultatoSync> {
   const sb = supabaseServer();
   try {
     const stagioneApi = await recuperaStagioneCorrente();
-    const pilotiApi = await recuperaPilotiCompleti(stagioneApi.id);
+    const categorieApi = await recuperaCategorie(stagioneApi.id);
 
     const { data: categorie } = await sb.from('motogp_categorie').select('id, codice');
     const mappaCategorieIdPerCodice = new Map((categorie ?? []).map((c) => [c.codice, c.id]));
 
     let aggiornati = 0;
-    for (const pilotaApi of pilotiApi) {
-      const passo = pilotaApi.current_career_step;
-      if (!passo) continue; // pilota senza stagione corrente nota: si salta, niente dati inventati
+    let totale = 0;
 
-      const categoriaId = mappaCategorieIdPerCodice.get(passo.category?.name ?? '');
-      const urlFoto = passo.pictures?.profile?.main ?? passo.pictures?.portrait ?? null;
+    for (const catApi of categorieApi) {
+      const codiceCategoria = catApi.name as string;
+      const categoriaId = mappaCategorieIdPerCodice.get(codiceCategoria);
+      if (!categoriaId) continue; // es. MotoE: non gestita dal fantagame
 
-      const { error } = await sb.from('motogp_piloti').upsert(
-        {
-          uuid_esterno: pilotaApi.id,
-          nome_completo: pilotaApi.full_name,
-          numero: passo.number ?? null, // numero CORRENTE di questa stagione, mai assunto fisso
-          paese: pilotaApi.country?.name ?? null,
-          categoria_id: categoriaId ?? null,
-          team: passo.sponsored_team ?? passo.team?.name ?? null,
-          colore_team: passo.team?.color ?? null,
-          testo_colore_team: passo.team?.text_color ?? null,
-          url_foto: urlFoto,
-        },
-        { onConflict: 'uuid_esterno' }
-      );
-      if (!error) aggiornati++;
+      // Recupera la classifica mondiale per questa categoria/stagione: contiene
+      // tutti i piloti iscritti con nome, numero, team aggiornati.
+      let standings: { position: number; rider: { id: string; full_name: string; number?: number; country?: { name?: string } }; team?: { name?: string }; points?: number }[] = [];
+      try {
+        const res = await fetch(
+          `https://api.motogp.pulselive.com/motogp/v1/results/standings?seasonUuid=${stagioneApi.id}&categoryUuid=${catApi.id}`,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': 'https://www.motogp.com/',
+              'Origin': 'https://www.motogp.com',
+              'Accept': 'application/json',
+            },
+            cache: 'no-store',
+          }
+        );
+        if (!res.ok) continue;
+        const data = await res.json();
+        standings = data.classification ?? data ?? [];
+      } catch {
+        continue;
+      }
+
+      totale += standings.length;
+
+      for (const riga of standings) {
+        if (!riga.rider?.id || !riga.rider?.full_name) continue;
+
+        const { error } = await sb.from('motogp_piloti').upsert(
+          {
+            uuid_esterno: riga.rider.id,
+            nome_completo: riga.rider.full_name,
+            numero: riga.rider.number ?? null,
+            paese: riga.rider.country?.name ?? null,
+            categoria_id: categoriaId,
+            team: riga.team?.name ?? null,
+            colore_team: null, // non disponibile via standings, opzionale
+            testo_colore_team: null,
+            url_foto: null,
+          },
+          { onConflict: 'uuid_esterno' }
+        );
+        if (!error) aggiornati++;
+      }
     }
 
     const risultato: RisultatoSync = {
-      esito: 'successo',
-      dettaglio: `${aggiornati}/${pilotiApi.length} piloti sincronizzati (anagrafica, numero, colori team, foto) per la stagione ${stagioneApi.year}.`,
+      esito: aggiornati > 0 ? 'successo' : 'errore',
+      dettaglio: `${aggiornati}/${totale} piloti sincronizzati (anagrafica, numero, team) per la stagione ${stagioneApi.year}.`,
       eventiAggiornati: aggiornati,
     };
     await logSync('piloti', risultato);
