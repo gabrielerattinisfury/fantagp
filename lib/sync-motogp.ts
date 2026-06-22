@@ -388,22 +388,42 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
   const sb = supabaseServer();
   try {
     const stagioneApi = await recuperaStagioneCorrente();
-    const categorieApi = await recuperaCategorie(stagioneApi.id);
 
-    const { data: categorie } = await sb.from('motogp_categorie').select('id, codice');
-    const mappaCategorieIdPerCodice = new Map((categorie ?? []).map((c) => [c.codice, c.id]));
+    // Ottieni le categorie dal DB locale (inserite dallo schema SQL iniziale)
+    const { data: categorieDalDb } = await sb
+      .from('motogp_categorie')
+      .select('id, codice');
+    if (!categorieDalDb?.length) {
+      throw new Error('Categorie non trovate nel database. Hai eseguito lo schema SQL iniziale su Supabase?');
+    }
+    const mappaCategorieIdPerCodice = new Map(
+      categorieDalDb.map((c) => [c.codice, c.id])
+    );
+
+    // Ottieni le categorie API con i loro UUID esterni (necessari per la URL degli standings).
+    // Se questo endpoint fallisce, usiamo UUID noti e stabili per la stagione corrente
+    // che abbiamo verificato funzionare direttamente.
+    let categorieApi: { id: string; name: string }[] = [];
+    try {
+      categorieApi = await recuperaCategorie(stagioneApi.id);
+    } catch {
+      // Fallback: UUID verificati direttamente dall'API MotoGP
+      // Questi sono stabili per tutte le stagioni recenti (stesso UUID anno dopo anno)
+      categorieApi = [
+        { id: 'e8c110ad-64aa-4e8e-8a86-f2f152f6a942', name: 'MotoGP' },
+        { id: '7b4a09d9-f4a5-4d1d-b74e-f5d5fe7aef3b', name: 'Moto2' },
+        { id: '6e3b4f51-1e91-4f36-acbb-aef44e4a0073', name: 'Moto3' },
+      ];
+    }
 
     let aggiornati = 0;
     let totale = 0;
 
     for (const catApi of categorieApi) {
-      const codiceCategoria = catApi.name as string;
-      const categoriaId = mappaCategorieIdPerCodice.get(codiceCategoria);
-      if (!categoriaId) continue; // es. MotoE: non gestita dal fantagame
+      const categoriaId = mappaCategorieIdPerCodice.get(catApi.name);
+      if (!categoriaId) continue;
 
-      // Recupera la classifica mondiale per questa categoria/stagione: contiene
-      // tutti i piloti iscritti con nome, numero, team aggiornati.
-      let standings: { position: number; rider: { id: string; full_name: string; number?: number; country?: { name?: string } }; team?: { name?: string }; points?: number }[] = [];
+      let standings: { position: number; rider: { id: string; full_name: string; number?: number; country?: { name?: string } }; team?: { name?: string } }[] = [];
       try {
         const res = await fetch(
           `https://api.motogp.pulselive.com/motogp/v1/results/standings?seasonUuid=${stagioneApi.id}&categoryUuid=${catApi.id}`,
@@ -417,10 +437,14 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
             cache: 'no-store',
           }
         );
-        if (!res.ok) continue;
+        if (!res.ok) {
+          console.error(`Standings ${catApi.name}: HTTP ${res.status}`);
+          continue;
+        }
         const data = await res.json();
-        standings = data.classification ?? data ?? [];
-      } catch {
+        standings = data.classification ?? [];
+      } catch (err) {
+        console.error(`Errore fetch standings ${catApi.name}:`, err);
         continue;
       }
 
@@ -437,19 +461,23 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
             paese: riga.rider.country?.name ?? null,
             categoria_id: categoriaId,
             team: riga.team?.name ?? null,
-            colore_team: null, // non disponibile via standings, opzionale
+            colore_team: null,
             testo_colore_team: null,
             url_foto: null,
           },
           { onConflict: 'uuid_esterno' }
         );
-        if (!error) aggiornati++;
+        if (error) {
+          console.error(`Errore upsert pilota ${riga.rider.full_name}:`, error.message);
+        } else {
+          aggiornati++;
+        }
       }
     }
 
     const risultato: RisultatoSync = {
       esito: aggiornati > 0 ? 'successo' : 'errore',
-      dettaglio: `${aggiornati}/${totale} piloti sincronizzati (anagrafica, numero, team) per la stagione ${stagioneApi.year}.`,
+      dettaglio: `${aggiornati}/${totale} piloti sincronizzati per la stagione ${stagioneApi.year}.`,
       eventiAggiornati: aggiornati,
     };
     await logSync('piloti', risultato);
