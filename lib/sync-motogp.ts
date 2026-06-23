@@ -389,26 +389,26 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
   try {
     const stagioneApi = await recuperaStagioneCorrente();
 
-    // 1. Ottieni le categorie dal DB locale
+    // Ottieni le categorie dal DB locale (inserite dallo schema SQL iniziale)
     const { data: categorieDalDb } = await sb
       .from('motogp_categorie')
       .select('id, codice');
-      
     if (!categorieDalDb?.length) {
       throw new Error('Categorie non trovate nel database. Hai eseguito lo schema SQL iniziale su Supabase?');
     }
-
-    // Mappa normalizzata in minuscolo per evitare fallimenti di case-sensitivity
     const mappaCategorieIdPerCodice = new Map(
-      categorieDalDb.map((c) => [c.codice.toLowerCase().trim(), c.id])
+      categorieDalDb.map((c) => [c.codice, c.id])
     );
 
-    // 2. Recupero categorie dall'API o Fallback
+    // Ottieni le categorie API con i loro UUID esterni (necessari per la URL degli standings).
+    // Se questo endpoint fallisce, usiamo UUID noti e stabili per la stagione corrente
+    // che abbiamo verificato funzionare direttamente.
     let categorieApi: { id: string; name: string }[] = [];
     try {
       categorieApi = await recuperaCategorie(stagioneApi.id);
-    } catch (err) {
-      console.warn("Recupero categorie API fallito, uso il fallback statico:", err);
+    } catch {
+      // Fallback: UUID verificati direttamente dall'API MotoGP
+      // Questi sono stabili per tutte le stagioni recenti (stesso UUID anno dopo anno)
       categorieApi = [
         { id: 'e8c110ad-64aa-4e8e-8a86-f2f152f6a942', name: 'MotoGP' },
         { id: '7b4a09d9-f4a5-4d1d-b74e-f5d5fe7aef3b', name: 'Moto2' },
@@ -420,38 +420,29 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
     let totale = 0;
 
     for (const catApi of categorieApi) {
-      // Forziamo il confronto in minuscolo (es. "motogp")
-      const codiceCercato = catApi.name.toLowerCase().trim();
-      const categoriaId = mappaCategorieIdPerCodice.get(codiceCercato);
-      
-      if (!categoriaId) {
-        console.warn(`[SKIP] Categoria API "${catApi.name}" non mappata nel DB locale. Chiavi disponibili nel tuo DB:`, Array.from(mappaCategorieIdPerCodice.keys()));
-        continue;
-      }
+      const categoriaId = mappaCategorieIdPerCodice.get(catApi.name);
+      if (!categoriaId) continue;
 
-      let standings: any[] = [];
+      let standings: { position: number; rider: { id: string; full_name: string; number?: number; country?: { name?: string } }; team?: { name?: string } }[] = [];
       try {
-        const url = `https://api.motogp.pulselive.com/motogp/v1/results/standings?seasonUuid=${stagioneApi.id}&categoryUuid=${catApi.id}`;
-        
-        const res = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.motogp.com/',
-            'Origin': 'https://www.motogp.com',
-            'Accept': 'application/json',
-          },
-          cache: 'no-store',
-          next: { revalidate: 0 } // Evita il caching aggressivo di Next.js
-        });
-
+        const res = await fetch(
+          `https://api.motogp.pulselive.com/motogp/v1/results/standings?seasonUuid=${stagioneApi.id}&categoryUuid=${catApi.id}`,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': 'https://www.motogp.com/',
+              'Origin': 'https://www.motogp.com',
+              'Accept': 'application/json',
+            },
+            cache: 'no-store',
+          }
+        );
         if (!res.ok) {
-          console.error(`Standings ${catApi.name}: HTTP ${res.status} su URL: ${url}`);
+          console.error(`Standings ${catApi.name}: HTTP ${res.status}`);
           continue;
         }
-        
         const data = await res.json();
         standings = data.classification ?? [];
-        console.log(`[OK] Ricevuti ${standings.length} piloti dall'API per la categoria ${catApi.name}`);
       } catch (err) {
         console.error(`Errore fetch standings ${catApi.name}:`, err);
         continue;
@@ -476,7 +467,6 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
           },
           { onConflict: 'uuid_esterno' }
         );
-        
         if (error) {
           console.error(`Errore upsert pilota ${riga.rider.full_name}:`, error.message);
         } else {
@@ -485,12 +475,12 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
       }
     }
 
-const risultato: RisultatoSync = {
+    const risultato: RisultatoSync = {
       esito: aggiornati > 0 ? 'successo' : 'errore',
       dettaglio: `${aggiornati}/${totale} piloti sincronizzati per la stagione ${stagioneApi.year}.`,
       eventiAggiornati: aggiornati,
     };
-    await logSync('piloti', risultato); // <--- CORRETTO (tolto "... ")
+    await logSync('piloti', risultato);
     return risultato;
   } catch (err) {
     const risultato: RisultatoSync = {
@@ -498,7 +488,7 @@ const risultato: RisultatoSync = {
       dettaglio: `Sync piloti fallita: ${String(err)}`,
       eventiAggiornati: 0,
     };
-    await logSync('piloti', risultato); // <--- CORRETTO (tolto "... ")
+    await logSync('piloti', risultato);
     return risultato;
   }
 }
