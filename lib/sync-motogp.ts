@@ -389,44 +389,47 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
   try {
     const stagioneApi = await recuperaStagioneCorrente();
 
-    // Ottieni le categorie dal DB locale (inserite dallo schema SQL iniziale)
     const { data: categorieDalDb } = await sb
       .from('motogp_categorie')
       .select('id, codice');
     if (!categorieDalDb?.length) {
       throw new Error('Categorie non trovate nel database. Hai eseguito lo schema SQL iniziale su Supabase?');
     }
-    const mappaCategorieIdPerCodice = new Map(
-      categorieDalDb.map((c) => [c.codice, c.id])
-    );
 
-    // Ottieni le categorie API con i loro UUID esterni (necessari per la URL degli standings).
-    // Se questo endpoint fallisce, usiamo UUID noti e stabili per la stagione corrente
-    // che abbiamo verificato funzionare direttamente.
-    let categorieApi: { id: string; name: string }[] = [];
-    try {
-      categorieApi = await recuperaCategorie(stagioneApi.id);
-    } catch {
-      // Fallback: UUID verificati direttamente dall'API MotoGP
-      // Questi sono stabili per tutte le stagioni recenti (stesso UUID anno dopo anno)
-      categorieApi = [
-        { id: 'e8c110ad-64aa-4e8e-8a86-f2f152f6a942', name: 'MotoGP' },
-        { id: '7b4a09d9-f4a5-4d1d-b74e-f5d5fe7aef3b', name: 'Moto2' },
-        { id: '6e3b4f51-1e91-4f36-acbb-aef44e4a0073', name: 'Moto3' },
-      ];
-    }
+    // Mappa codice -> id del DB (es. 'MotoGP' -> uuid interno)
+    const mappaCodiceId = new Map(categorieDalDb.map((c) => [c.codice, c.id]));
+
+    // UUID verificati direttamente dall'API ufficiale (stabili tra le stagioni).
+    // Usiamo UUID diretti invece di recuperarli via /categories per evitare
+    // il problema del simbolo ™ nei nomi ('MotoGP™' vs 'MotoGP') che causava
+    // il mismatch e il risultato 0/0.
+    const CATEGORIE = [
+      { uuid: 'e8c110ad-64aa-4e8e-8a86-f2f152f6a942', codiceDb: 'MotoGP' },
+      { uuid: '549640b8-fd9c-4245-acfd-60e4bc38b25c', codiceDb: 'Moto2' },
+      { uuid: '954f7e65-2ef2-4423-b949-4961cc603e45', codiceDb: 'Moto3' },
+    ];
 
     let aggiornati = 0;
     let totale = 0;
 
-    for (const catApi of categorieApi) {
-      const categoriaId = mappaCategorieIdPerCodice.get(catApi.name);
+    for (const cat of CATEGORIE) {
+      const categoriaId = mappaCodiceId.get(cat.codiceDb);
       if (!categoriaId) continue;
 
-      let standings: { position: number; rider: { id: string; full_name: string; number?: number; country?: { name?: string } }; team?: { name?: string } }[] = [];
+      let standings: {
+        position: number;
+        rider: {
+          id: string;
+          full_name: string;
+          number?: number;
+          country?: { name?: string };
+        };
+        team?: { name?: string };
+      }[] = [];
+
       try {
         const res = await fetch(
-          `https://api.motogp.pulselive.com/motogp/v1/results/standings?seasonUuid=${stagioneApi.id}&categoryUuid=${catApi.id}`,
+          `https://api.motogp.pulselive.com/motogp/v1/results/standings?seasonUuid=${stagioneApi.id}&categoryUuid=${cat.uuid}`,
           {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -438,13 +441,13 @@ export async function sincronizzaPiloti(): Promise<RisultatoSync> {
           }
         );
         if (!res.ok) {
-          console.error(`Standings ${catApi.name}: HTTP ${res.status}`);
+          console.error(`Standings ${cat.codiceDb}: HTTP ${res.status}`);
           continue;
         }
         const data = await res.json();
         standings = data.classification ?? [];
       } catch (err) {
-        console.error(`Errore fetch standings ${catApi.name}:`, err);
+        console.error(`Errore fetch standings ${cat.codiceDb}:`, err);
         continue;
       }
 
