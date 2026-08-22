@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(225, 6, 0, 0.09), transparent),
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
+  background-attachment: fixed;
+}
+
+.numero-gara {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+:focus-visible {
+  outline: 2px solid #ffd400;
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   SISTEMA "LIQUID GLASS"
+   ============================================================================
+   Pannelli con più profondità: gradiente sottile + sfocatura dello sfondo +
+   bordo luminoso + doppia ombra (una scura verso il basso per staccare dallo
+   sfondo, una chiara interna in alto per simulare il riflesso del vetro).
+   Restano scuri (tema fisso, vedi nota in fondo): l'obiettivo è dare
+   tridimensionalità, non schiarire l'app.
+   ============================================================================ */
+.glass {
+  position: relative;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 55%, rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 10px 30px -10px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.glass-strong {
+  position: relative;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.045));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 16px 40px -12px rgba(0, 0, 0, 0.6),
+    0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.glass-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.glass-hover:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 18px 44px -12px rgba(0, 0, 0, 0.65),
+    0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* L'app resta sempre in tema scuro fisso, indipendentemente dalla modalità
+   chiara/scura impostata a livello di sistema operativo: nessuna regola
+   "prefers-color-scheme: light" da applicare qui, di proposito. */
