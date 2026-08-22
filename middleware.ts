@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/favicon') ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||
-    pathname.startsWith('/icons/')
+    pathname.startsWith('/icon/') // cartella reale in public/ (singolare) — prima puntava a "/icons/" e le icone finivano rimandate al login
   ) {
     return NextResponse.next();
   }

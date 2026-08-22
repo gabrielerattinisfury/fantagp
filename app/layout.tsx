@@ -25,11 +25,14 @@ export async function generateMetadata() {
     description: `Il fantacampionato MotoGP, Moto2 e Moto3 della stagione${suffisso ? ` ${anno}` : ' in corso'}`,
     manifest: '/manifest.json',
     icons: {
+      // Nota: la cartella reale in public/ si chiama "icon" (singolare, vedi
+      // scripts/genera-icone.py) — qui puntava a "/icons/" (plurale, non
+      // esistente) e quindi favicon/apple-touch-icon erano sempre in 404.
       icon: [
-        { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
-        { url: '/icons/favicon-16.png', sizes: '16x16', type: 'image/png' },
+        { url: '/icon/favicon-32.png', sizes: '32x32', type: 'image/png' },
+        { url: '/icon/favicon-16.png', sizes: '16x16', type: 'image/png' },
       ],
-      apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+      apple: [{ url: '/icon/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
     },
     // iOS non legge manifest.json per l'installazione "Aggiungi alla
     // schermata Home": richiede questi meta tag dedicati per comportarsi
