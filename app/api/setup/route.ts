@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase-server';
+import { randomUUID } from 'crypto';
 import { hashPassword } from '@/lib/auth';
 
 const schemaSetup = z.object({
   codiceSetup: z.string().min(1),
   username: z.string().min(3).max(24),
-  password: z.string().min(6),
   nomeSquadra: z.string().min(1).max(40),
 });
 
@@ -61,8 +61,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { username, password, nomeSquadra } = parsed.data;
-  const passwordHash = await hashPassword(password);
+  const { username, nomeSquadra } = parsed.data;
+  // Login senza password: hash casuale mai usato per la colonna password_hash
+  const passwordHash = await hashPassword(randomUUID());
 
   const { error } = await sb.from('fanta_utenti').insert({
     username,
