@@ -8,7 +8,6 @@ export default function PaginaLogin() {
   const { login } = useAuth();
   const router = useRouter();
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [errore, setErrore] = useState<string | null>(null);
   const [caricamento, setCaricamento] = useState(false);
   const [annoStagione, setAnnoStagione] = useState<number | null>(null);
@@ -28,7 +27,7 @@ export default function PaginaLogin() {
     e.preventDefault();
     setErrore(null);
     setCaricamento(true);
-    const risultato = await login(username, password);
+    const risultato = await login(username, '');
     setCaricamento(false);
     if (!risultato.ok) {
       setErrore(risultato.errore ?? 'Errore di accesso.');
@@ -65,22 +64,6 @@ export default function PaginaLogin() {
               onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded-lg bg-asfalto-900 border border-white/10 px-3.5 py-2.5 text-white placeholder-asfalto-500 focus:border-bandiera-giallo/50 outline-none transition-colors"
               placeholder="es. marco89"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm text-asfalto-300 mb-1.5">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg bg-asfalto-900 border border-white/10 px-3.5 py-2.5 text-white placeholder-asfalto-500 focus:border-bandiera-giallo/50 outline-none transition-colors"
-              placeholder="••••••••"
             />
           </div>
 
