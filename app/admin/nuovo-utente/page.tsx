@@ -54,7 +54,6 @@ function PaginaNuovoUtenteInterna() {
   const [stagioneId, setStagioneId] = useState<string | null>(null);
 
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [nomeSquadra, setNomeSquadra] = useState('');
   const [numeroGara, setNumeroGara] = useState('');
   const [colorePrimario, setColorePrimario] = useState('#E10600');
@@ -115,7 +114,6 @@ function PaginaNuovoUtenteInterna() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username,
-          password,
           nomeSquadra,
           colorePrimario,
           numeroGara: numeroGara ? parseInt(numeroGara, 10) : null,
@@ -152,14 +150,6 @@ function PaginaNuovoUtenteInterna() {
               placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="rounded-lg bg-asfalto-900 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-bandiera-giallo/50"
-            />
-            <input
-              required
-              type="password"
-              placeholder="Password iniziale"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               className="rounded-lg bg-asfalto-900 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-bandiera-giallo/50"
             />
             <input
