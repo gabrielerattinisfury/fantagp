@@ -62,7 +62,6 @@ function PaginaModificaUtenteInterna() {
   const [colorePrimario, setColorePrimario] = useState('#E10600');
   const [coloreSecondario, setColoreSecondario] = useState('#1A1A1A');
   const [stelleMondiali, setStelleMondiali] = useState('0');
-  const [nuovaPassword, setNuovaPassword] = useState('');
 
   const [moto3A, setMoto3A] = useState('');
   const [moto3B, setMoto3B] = useState('');
@@ -159,7 +158,6 @@ function PaginaModificaUtenteInterna() {
           colorePrimario,
           coloreSecondario,
           numeroGara: numeroGara ? parseInt(numeroGara, 10) : null,
-          nuovaPassword: nuovaPassword || undefined,
           rosa: {
             moto3A: moto3A || undefined,
             moto3B: moto3B || undefined,
@@ -191,7 +189,6 @@ function PaginaModificaUtenteInterna() {
       }
 
       setSuccesso('Modifiche salvate.');
-      setNuovaPassword('');
     } catch {
       setErrore('Errore di connessione.');
     } finally {
@@ -288,15 +285,6 @@ function PaginaModificaUtenteInterna() {
                 className="h-9 w-16 rounded-lg bg-transparent border border-white/10 cursor-pointer"
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-xs text-asfalto-400 mb-1">Nuova password (lascia vuoto per non cambiarla)</label>
-            <input
-              type="password"
-              value={nuovaPassword}
-              onChange={(e) => setNuovaPassword(e.target.value)}
-              className="w-full rounded-lg bg-asfalto-900 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-bandiera-giallo/50"
-            />
           </div>
         </div>
 
