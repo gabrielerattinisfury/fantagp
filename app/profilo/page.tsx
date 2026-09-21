@@ -17,8 +17,6 @@ function PaginaProfiloInterna() {
   const [coloreSecondario, setColoreSecondario] = useState(utente?.colore_secondario ?? '#1A1A1A');
   const [numeroGara, setNumeroGara] = useState<string>(utente?.numero_gara?.toString() ?? '');
 
-  const [passwordAttuale, setPasswordAttuale] = useState('');
-  const [nuovaPassword, setNuovaPassword] = useState('');
 
   const [errore, setErrore] = useState<string | null>(null);
   const [successo, setSuccesso] = useState<string | null>(null);
@@ -48,36 +46,6 @@ function PaginaProfiloInterna() {
       }
       setSuccesso('Profilo aggiornato.');
       await ricarica();
-    } catch {
-      setErrore('Errore di connessione.');
-    } finally {
-      setSalvataggio(false);
-    }
-  }
-
-  async function handleCambiaPassword(e: FormEvent) {
-    e.preventDefault();
-    setErrore(null);
-    setSuccesso(null);
-    if (!passwordAttuale || !nuovaPassword) {
-      setErrore('Inserisci sia la password attuale che la nuova.');
-      return;
-    }
-    setSalvataggio(true);
-    try {
-      const res = await fetch('/api/profilo', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passwordAttuale, nuovaPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrore(data.errore ?? 'Errore nel cambio password.');
-        return;
-      }
-      setSuccesso('Password aggiornata.');
-      setPasswordAttuale('');
-      setNuovaPassword('');
     } catch {
       setErrore('Errore di connessione.');
     } finally {
@@ -188,37 +156,6 @@ function PaginaProfiloInterna() {
           Salva profilo
         </button>
       </form>
-
-      <div className="border-t border-white/10 pt-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Cambia password</h2>
-        <form onSubmit={handleCambiaPassword} className="space-y-4 max-w-sm">
-          <div>
-            <label className="block text-sm text-asfalto-300 mb-1.5">Password attuale</label>
-            <input
-              type="password"
-              value={passwordAttuale}
-              onChange={(e) => setPasswordAttuale(e.target.value)}
-              className="w-full rounded-lg bg-asfalto-900 border border-white/10 px-3.5 py-2.5 text-white outline-none focus:border-bandiera-giallo/50 transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-asfalto-300 mb-1.5">Nuova password</label>
-            <input
-              type="password"
-              value={nuovaPassword}
-              onChange={(e) => setNuovaPassword(e.target.value)}
-              className="w-full rounded-lg bg-asfalto-900 border border-white/10 px-3.5 py-2.5 text-white outline-none focus:border-bandiera-giallo/50 transition-colors"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={salvataggio}
-            className="w-full sm:w-auto bg-asfalto-700 hover:bg-asfalto-600 disabled:opacity-50 transition-colors text-white font-medium rounded-lg px-6 py-2.5"
-          >
-            Aggiorna password
-          </button>
-        </form>
-      </div>
 
       {errore && (
         <p className="text-sm text-bandiera-rosso bg-bandiera-rosso/10 border border-bandiera-rosso/30 rounded-lg px-3 py-2">
