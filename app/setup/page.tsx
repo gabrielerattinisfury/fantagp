@@ -10,7 +10,6 @@ export default function PaginaSetup() {
 
   const [codiceSetup, setCodiceSetup] = useState('');
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [nomeSquadra, setNomeSquadra] = useState('');
 
   const [errore, setErrore] = useState<string | null>(null);
@@ -33,7 +32,7 @@ export default function PaginaSetup() {
       const res = await fetch('/api/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codiceSetup, username, password, nomeSquadra }),
+        body: JSON.stringify({ codiceSetup, username, nomeSquadra }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -152,22 +151,6 @@ export default function PaginaSetup() {
               onChange={(e) => setNomeSquadra(e.target.value)}
               className="w-full rounded-xl bg-asfalto-900 border border-white/10 px-3.5 py-2.5 text-white placeholder-asfalto-500 focus:border-bandiera-giallo/50 outline-none transition-colors"
               placeholder="es. Box Numero Uno"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm text-asfalto-300 mb-1.5">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl bg-asfalto-900 border border-white/10 px-3.5 py-2.5 text-white placeholder-asfalto-500 focus:border-bandiera-giallo/50 outline-none transition-colors"
-              placeholder="Minimo 6 caratteri"
             />
           </div>
 
