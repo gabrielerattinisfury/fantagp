@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase-server';
 import { richiedeAdmin } from '@/lib/api-guard';
+import { randomUUID } from 'crypto';
 import { hashPassword } from '@/lib/auth';
 
 const regexColoreHex = /^#[0-9A-Fa-f]{6}$/;
 
 const schemaNuovoUtente = z.object({
   username: z.string().min(3).max(24),
-  password: z.string().min(6),
   nomeSquadra: z.string().min(1).max(40),
   colorePrimario: z.string().regex(regexColoreHex).default('#E10600'),
   coloreSecondario: z.string().regex(regexColoreHex).default('#1A1A1A'),
@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
   const { data: categorie } = await sb.from('motogp_categorie').select('id, codice');
   const idCategoria = (codice: string) => categorie?.find((c) => c.codice === codice)?.id;
 
-  const passwordHash = await hashPassword(d.password);
+  // Login senza password: la colonna password_hash resta valorizzata con un hash casuale mai usato
+  const passwordHash = await hashPassword(randomUUID());
 
   const { data: nuovoUtente, error: errUtente } = await sb
     .from('fanta_utenti')
